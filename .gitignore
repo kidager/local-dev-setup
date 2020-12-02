@@ -1,0 +1,7 @@
+.env
+certs/*
+!certs/.gitkeep
+ignore/*
+!ignore/.gitkeep
+volumes/*
+!volumes/.gitkeep

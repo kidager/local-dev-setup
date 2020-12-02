@@ -1,0 +1,125 @@
+version: '3'
+
+services:
+  reverse-proxy:
+    image: traefik:v2.3
+    restart: always
+    command:
+      - --providers.docker
+      - --api.dashboard=true
+      - --accesslog=true
+      - --log.level=DEBUG
+      - --log.filePath=/var/log/traefik.log
+      - --entryPoints.smtp.address=:25
+      - --entryPoints.web.address=:80
+      - --entryPoints.websecure.address=:443
+      - --entryPoints.mysql.address=:3306
+      - --providers.file.filename=/etc/traefik/dynamic.toml
+    ports:
+      - "25:25"
+      - "80:80"
+      - "443:443"
+      - "3306:3306"
+    labels:
+      traefik.http.routers.dashboard.rule: Host(`dashboard.${BASE_DOMAIN_NAME:-dev.localhost}`)
+      traefik.http.routers.dashboard.service: api@internal
+      # traefik.http.routers.dashboard.middlewares: auth
+      # traefik.http.middlewares.auth.basicauth.users: test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/,test2:$$apr1$$d9hr9HBB$$4HxwgUir3HP4EsggP/QNo0
+      traefik.http.routers.dashboard-ssl.tls: "true"
+      traefik.http.routers.dashboard-ssl.service: api@internal
+      traefik.http.routers.dashboard-ssl.rule: Host(`dashboard.${BASE_DOMAIN_NAME:-dev.localhost}`)
+      traefik.http.routers.dashboard-ssl.entryPoints: websecure
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/log/traefik.log:/var/log/traefik.log
+      - ./certs/:/etc/certs/:ro
+      - ./traefik-dynamic.toml:/etc/traefik/dynamic.toml:ro
+    networks:
+      local-network:
+
+  whoami:
+    image: traefik/whoami
+    restart: unless-stopped
+    labels:
+      # HTTP
+      traefik.http.routers.whoami.service: whoami
+      traefik.http.routers.whoami.rule: Host(`whoami.${BASE_DOMAIN_NAME:-dev.localhost}`)
+      traefik.http.routers.whoami.entryPoints: web
+      traefik.http.services.whoami.loadbalancer.server.port: 80
+      # HTTPS
+      traefik.http.routers.whoami-ssl.tls: "true"
+      traefik.http.routers.whoami-ssl.service: whoami-ssl
+      traefik.http.routers.whoami-ssl.rule: Host(`whoami.${BASE_DOMAIN_NAME:-dev.localhost}`)
+      traefik.http.routers.whoami-ssl.entryPoints: websecure
+      traefik.http.services.whoami-ssl.loadbalancer.server.port: 80
+    networks:
+      local-network:
+
+  mysql:
+    image: mariadb:latest
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
+      # MYSQL_DATABASE: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASS}
+    labels:
+      # MySQL
+      traefik.tcp.routers.mysql.rule: HostSNI(`*`)
+      traefik.tcp.routers.mysql.entryPoints: mysql
+    volumes:
+      - volume-mysql:/var/lib/mysql
+    networks:
+      local-network:
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    restart: always
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASS}
+      PMA_ABSOLUTE_URI: phpmyadmin.${BASE_DOMAIN_NAME:-dev.localhost}
+    labels:
+      # HTTP
+      traefik.http.routers.phpmyadmin.service: phpmyadmin
+      traefik.http.routers.phpmyadmin.rule: Host(`phpmyadmin.${BASE_DOMAIN_NAME:-dev.localhost}`)
+      traefik.http.routers.phpmyadmin.entryPoints: web
+      traefik.http.services.phpmyadmin.loadbalancer.server.port: 80
+      # HTTPS
+      traefik.http.routers.phpmyadmin-ssl.tls: "true"
+      traefik.http.routers.phpmyadmin-ssl.service: phpmyadmin-ssl
+      traefik.http.routers.phpmyadmin-ssl.rule: Host(`phpmyadmin.${BASE_DOMAIN_NAME:-dev.localhost}`)
+      traefik.http.routers.phpmyadmin-ssl.entryPoints: websecure
+      traefik.http.services.phpmyadmin-ssl.loadbalancer.server.port: 80
+    networks:
+      local-network:
+
+  maildev:
+    image: maildev/maildev
+    restart: always
+    labels:
+      # SMTP
+      traefik.tcp.routers.smtp.rule: HostSNI(`*`)
+      traefik.tcp.routers.smtp.entryPoints: smtp
+      # HTTP
+      traefik.http.routers.maildev.service: maildev
+      traefik.http.routers.maildev.rule: Host(`maildev.${BASE_DOMAIN_NAME:-dev.localhost}`)
+      traefik.http.routers.maildev.entryPoints: web
+      traefik.http.services.maildev.loadbalancer.server.port: 80
+      # HTTPS
+      traefik.http.routers.maildev-ssl.tls: "true"
+      traefik.http.routers.maildev-ssl.service: maildev-ssl
+      traefik.http.routers.maildev-ssl.rule: Host(`maildev.${BASE_DOMAIN_NAME:-dev.localhost}`)
+      traefik.http.routers.maildev-ssl.entryPoints: websecure
+      traefik.http.services.maildev-ssl.loadbalancer.server.port: 80
+    networks:
+      local-network:
+
+volumes:
+  volume-mysql:
+    external: true
+
+networks:
+  local-network:
+    external: true
