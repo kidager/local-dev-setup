@@ -1,7 +1,10 @@
 .env
+ssl-domains.txt
 certs/*
 !certs/.gitkeep
 ignore/*
 !ignore/.gitkeep
 volumes/*
 !volumes/.gitkeep
+config/phpmyadmin/config.creds.inc.php
+docker-compose.override.yml
