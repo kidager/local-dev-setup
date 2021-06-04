@@ -31,6 +31,8 @@ $cfg['RepeatCells'] = 0;
 $cfg['Console']['Height'] = 210;
 $cfg['Console']['Mode'] = 'collapse';
 $cfg['ForceSSL'] = true;
+$cfg['DefaultTabDatabase'] = 'sql';
+$cfg['DefaultTabTable'] = 'structure';
 
 /* Include User Defined Settings Hook */
 if (file_exists('/etc/phpmyadmin/config.creds.inc.php')) {
