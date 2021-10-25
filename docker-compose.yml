@@ -1,4 +1,4 @@
-version: '3'
+version: '3.9'
 
 services:
   traefik:
@@ -58,13 +58,13 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/log/traefik.log:/var/log/traefik.log
-      - ./certs/:/etc/certs/
+      - ./certs/:/etc/certs/:ro
       - ./traefik-dynamic.toml:/etc/traefik/dynamic.toml:ro
     networks:
       local-network:
 
   portainer:
-    image: portainer/portainer-ce
+    image: portainer/portainer-ce:latest
     restart: unless-stopped
     labels:
       # HTTP
@@ -87,8 +87,9 @@ services:
       local-network:
 
   whoami:
-    image: traefik/whoami
+    image: traefik/whoami:latest
     restart: unless-stopped
+    profiles: ["dev", "testing", "whoami"]
     labels:
       # HTTP
       traefik.http.routers.whoami.service: whoami
@@ -109,13 +110,11 @@ services:
   mysql:
     image: mariadb:latest
     restart: always
+    profiles: ["dev", "database", "mariadb"]
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
-      # MYSQL_DATABASE: mysql
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASS}
-    ports:
-      - 3309:3306
     labels:
       # MySQL
       traefik.tcp.routers.mysql.rule: HostSNI(`*`)
@@ -126,7 +125,7 @@ services:
       local-network:
 
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin
+    image: phpmyadmin/phpmyadmin:latest
     restart: always
     environment:
       PMA_HOST: mysql
@@ -148,14 +147,14 @@ services:
       traefik.http.services.phpmyadmin-ssl.loadbalancer.server.port: 80
       traefik.http.routers.phpmyadmin-ssl.tls.certresolver: letsencrypt
     volumes:
-      - ./config/phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php
-      - ./config/phpmyadmin/config.creds.inc.php:/etc/phpmyadmin/config.creds.inc.php
-      - ./config/phpmyadmin/phpmyadmin-misc.ini:/usr/local/etc/php/conf.d/phpmyadmin-misc.ini
+      - ./config/phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
+      - ./config/phpmyadmin/config.creds.inc.php:/etc/phpmyadmin/config.creds.inc.php:ro
+      - ./config/phpmyadmin/phpmyadmin-misc.ini:/usr/local/etc/php/conf.d/phpmyadmin-misc.ini:ro
     networks:
       local-network:
 
   maildev:
-    image: maildev/maildev
+    image: maildev/maildev:latest
     restart: always
     labels:
       # SMTP
@@ -179,8 +178,10 @@ services:
 
 volumes:
   volume-mysql:
+    name: mysql-data
     external: true
   volume-portainer:
+    name: portainer-data
     external: true
 
 networks:
