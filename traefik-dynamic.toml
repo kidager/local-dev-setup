@@ -1,5 +1,0 @@
-[tls.stores]
-  [tls.stores.default]
-    [tls.stores.default.defaultCertificate]
-      certFile = "/etc/certs/_default.pem"
-      keyFile  = "/etc/certs/_default-key.pem"

@@ -7,8 +7,13 @@ services:
     environment:
       - TZ=${TIMEZONE}
     command:
+      # Enable tracing
+      # - --tracing=true
       # Set docker as a provider
       - --providers.docker
+      - --providers.docker.exposedByDefault=false
+      # Define default network
+      - --providers.docker.network=traefik-network
       # Enable dashboard
       - --api.dashboard=true
       # Set log settings
@@ -28,84 +33,82 @@ services:
       - --providers.file.filename=/etc/traefik/dynamic.toml
       # Traefik Pilot
       - --pilot.token=${TRAEFIK_PILOT_TOKEN}
-      # TLS using Let's Encrypt
-      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
-      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
-      - --certificatesResolvers.letsencrypt.acme.storage=/etc/certs/acme.json
-      - --certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}
-      - --certificatesresolvers.letsencrypt.acme.caserver=${LETSENCRYPT_DOMAIN}
     ports:
       - "25:25"
       - "80:80"
       - "443:443"
       - "3306:3306"
     labels:
+      # Traefik
+      traefik.enable: true
       # Global Middlewares
-      traefik.http.middlewares.redirectToHttps.redirectscheme.scheme: https
-      traefik.http.middlewares.redirectToHttps.redirectscheme.permanent: "true"
-      traefik.http.middlewares.whitelistIPs.ipwhitelist.sourcerange: 127.0.0.0/8, 172.0.0.0/8, 192.168.0.0/16
+      traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: https
+      traefik.http.middlewares.redirect-to-https.redirectscheme.permanent: "true"
+      traefik.http.middlewares.whitelist-local-ips.ipwhitelist.sourcerange: 127.0.0.0/8, 172.0.0.0/8, 192.168.0.0/16
       # HTTP
-      traefik.http.routers.dashboard.rule: Host(`dashboard.${BASE_DOMAIN_NAME:-dev.localhost}`)
       traefik.http.routers.dashboard.service: api@internal
-      traefik.http.routers.dashboard.middlewares: redirectToHttps,whitelistIPs
+      traefik.http.routers.dashboard.rule: Host(`dashboard.${BASE_DOMAIN_NAME:-dev.localhost}`)
+      traefik.http.routers.dashboard.entryPoints: web
+      traefik.http.routers.dashboard.middlewares: redirect-to-https,whitelist-local-ips
       # HTTPS
       traefik.http.routers.dashboard-ssl.tls: "true"
       traefik.http.routers.dashboard-ssl.service: api@internal
       traefik.http.routers.dashboard-ssl.rule: Host(`dashboard.${BASE_DOMAIN_NAME:-dev.localhost}`)
       traefik.http.routers.dashboard-ssl.entryPoints: websecure
-      traefik.http.routers.dashboard-ssl.middlewares: whitelistIPs
-      traefik.http.routers.dashboard-ssl.tls.certresolver: letsencrypt
+      traefik.http.routers.dashboard-ssl.middlewares: whitelist-local-ips
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/log/traefik.log:/var/log/traefik.log
       - ./certs/:/etc/certs/:ro
-      - ./traefik-dynamic.toml:/etc/traefik/dynamic.toml:ro
+      - ./config/traefik/traefik-dynamic.toml:/etc/traefik/dynamic.toml:ro
     networks:
-      local-network:
+      traefik-network:
 
   portainer:
     image: portainer/portainer-ce:latest
     restart: unless-stopped
     labels:
+      # Traefik
+      traefik.enable: true
       # HTTP
       traefik.http.routers.portainer.service: portainer
       traefik.http.routers.portainer.rule: Host(`manage.${BASE_DOMAIN_NAME:-dev.localhost}`)
       traefik.http.routers.portainer.entryPoints: web
+      traefik.http.routers.portainer.middlewares: redirect-to-https,whitelist-local-ips
       traefik.http.services.portainer.loadbalancer.server.port: 9000
-      traefik.http.routers.portainer.middlewares: redirectToHttps
       # HTTPS
       traefik.http.routers.portainer-ssl.tls: "true"
-      traefik.http.routers.portainer-ssl.service: portainer-ssl
+      traefik.http.routers.portainer-ssl.service: portainer
       traefik.http.routers.portainer-ssl.rule: Host(`manage.${BASE_DOMAIN_NAME:-dev.localhost}`)
       traefik.http.routers.portainer-ssl.entryPoints: websecure
-      traefik.http.services.portainer-ssl.loadbalancer.server.port: 9000
-      traefik.http.routers.portainer-ssl.tls.certresolver: letsencrypt
+      traefik.http.routers.portainer-ssl.middlewares: whitelist-local-ips
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - volume-portainer:/data
+      - portainer-data:/data
     networks:
-      local-network:
+      traefik-network:
 
   whoami:
     image: traefik/whoami:latest
     restart: unless-stopped
     profiles: ["dev", "testing", "whoami"]
     labels:
+      # Traefik
+      traefik.enable: true
       # HTTP
       traefik.http.routers.whoami.service: whoami
       traefik.http.routers.whoami.rule: Host(`whoami.${BASE_DOMAIN_NAME:-dev.localhost}`)
       traefik.http.routers.whoami.entryPoints: web
+      traefik.http.routers.whoami.middlewares: redirect-to-https,whitelist-local-ips
       traefik.http.services.whoami.loadbalancer.server.port: 80
-      traefik.http.routers.whoami.middlewares: redirectToHttps
       # HTTPS
       traefik.http.routers.whoami-ssl.tls: "true"
-      traefik.http.routers.whoami-ssl.service: whoami-ssl
+      traefik.http.routers.whoami-ssl.service: whoami
       traefik.http.routers.whoami-ssl.rule: Host(`whoami.${BASE_DOMAIN_NAME:-dev.localhost}`)
       traefik.http.routers.whoami-ssl.entryPoints: websecure
-      traefik.http.services.whoami-ssl.loadbalancer.server.port: 80
-      traefik.http.routers.whoami-ssl.tls.certresolver: letsencrypt
+      traefik.http.routers.whoami-ssl.middlewares: whitelist-local-ips
     networks:
-      local-network:
+      traefik-network:
 
   mysql:
     image: mariadb:latest
@@ -116,13 +119,17 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASS}
     labels:
+      # Traefik
+      traefik.enable: true
       # MySQL
-      traefik.tcp.routers.mysql.rule: HostSNI(`*`)
-      traefik.tcp.routers.mysql.entryPoints: mysql
+      traefik.tcp.routers.mariadb.rule: HostSNI(`*`)
+      traefik.tcp.routers.mariadb.entryPoints: mysql
+      traefik.tcp.routers.mariadb.service: "mariadb"
+      traefik.tcp.services.mariadb.loadbalancer.server.port: 3306
     volumes:
-      - volume-mysql:/var/lib/mysql
+      - mysql-data:/var/lib/mysql
     networks:
-      local-network:
+      traefik-network:
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
@@ -133,57 +140,60 @@ services:
       PMA_PASSWORD: ${MYSQL_ROOT_PASS}
       PMA_ABSOLUTE_URI: phpmyadmin.${BASE_DOMAIN_NAME:-dev.localhost}
     labels:
+      # Traefik
+      traefik.enable: true
       # HTTP
       traefik.http.routers.phpmyadmin.service: phpmyadmin
       traefik.http.routers.phpmyadmin.rule: Host(`phpmyadmin.${BASE_DOMAIN_NAME:-dev.localhost}`)
       traefik.http.routers.phpmyadmin.entryPoints: web
+      traefik.http.routers.phpmyadmin.middlewares: redirect-to-https,whitelist-local-ips
       traefik.http.services.phpmyadmin.loadbalancer.server.port: 80
-      traefik.http.routers.phpmyadmin.middlewares: redirectToHttps
       # HTTPS
       traefik.http.routers.phpmyadmin-ssl.tls: "true"
-      traefik.http.routers.phpmyadmin-ssl.service: phpmyadmin-ssl
+      traefik.http.routers.phpmyadmin-ssl.service: phpmyadmin
       traefik.http.routers.phpmyadmin-ssl.rule: Host(`phpmyadmin.${BASE_DOMAIN_NAME:-dev.localhost}`)
       traefik.http.routers.phpmyadmin-ssl.entryPoints: websecure
-      traefik.http.services.phpmyadmin-ssl.loadbalancer.server.port: 80
-      traefik.http.routers.phpmyadmin-ssl.tls.certresolver: letsencrypt
+      traefik.http.routers.phpmyadmin-ssl.middlewares: whitelist-local-ips
     volumes:
       - ./config/phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
       - ./config/phpmyadmin/config.creds.inc.php:/etc/phpmyadmin/config.creds.inc.php:ro
       - ./config/phpmyadmin/phpmyadmin-misc.ini:/usr/local/etc/php/conf.d/phpmyadmin-misc.ini:ro
     networks:
-      local-network:
+      traefik-network:
 
   maildev:
     image: maildev/maildev:latest
     restart: always
     labels:
+      # Traefik
+      traefik.enable: true
       # SMTP
       traefik.tcp.routers.smtp.rule: HostSNI(`*`)
       traefik.tcp.routers.smtp.entryPoints: smtp
+      traefik.tcp.routers.smtp.service: "smtp"
+      traefik.tcp.services.smtp.loadbalancer.server.port: 25
       # HTTP
       traefik.http.routers.maildev.service: maildev
       traefik.http.routers.maildev.rule: Host(`maildev.${BASE_DOMAIN_NAME:-dev.localhost}`)
       traefik.http.routers.maildev.entryPoints: web
+      traefik.http.routers.maildev.middlewares: redirect-to-https,whitelist-local-ips
       traefik.http.services.maildev.loadbalancer.server.port: 80
-      traefik.http.routers.maildev.middlewares: redirectToHttps
       # HTTPS
       traefik.http.routers.maildev-ssl.tls: "true"
-      traefik.http.routers.maildev-ssl.service: maildev-ssl
+      traefik.http.routers.maildev-ssl.service: maildev
       traefik.http.routers.maildev-ssl.rule: Host(`maildev.${BASE_DOMAIN_NAME:-dev.localhost}`)
       traefik.http.routers.maildev-ssl.entryPoints: websecure
-      traefik.http.services.maildev-ssl.loadbalancer.server.port: 80
-      traefik.http.routers.maildev-ssl.tls.certresolver: letsencrypt
+      traefik.http.routers.maildev-ssl.middlewares: whitelist-local-ips
     networks:
-      local-network:
+      traefik-network:
 
 volumes:
-  volume-mysql:
-    name: mysql-data
+  mysql-data:
     external: true
-  volume-portainer:
-    name: portainer-data
+  portainer-data:
     external: true
 
 networks:
-  local-network:
+  traefik-network:
     external: true
+    name: traefik-network
