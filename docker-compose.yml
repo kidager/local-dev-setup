@@ -3,7 +3,7 @@ version: '3.9'
 services:
   traefik:
     image: traefik:latest
-    restart: always
+    restart: unless-stopped
     environment:
       - TZ=${TIMEZONE}
     command:
@@ -112,7 +112,7 @@ services:
 
   mysql:
     image: mariadb:latest
-    restart: always
+    restart: unless-stopped
     profiles: ["dev", "database", "mariadb"]
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
@@ -121,19 +121,20 @@ services:
     labels:
       # Traefik
       traefik.enable: true
-      # MySQL
-      traefik.tcp.routers.mariadb.rule: HostSNI(`*`)
+      traefik.tcp.services.mariadb.loadbalancer.server.port: 3306
+      # TCP
+      traefik.tcp.routers.mariadb.rule: HostSNI(`mysql`)
+      # traefik.tcp.routers.mariadb.priority: 999
       traefik.tcp.routers.mariadb.entryPoints: mysql
       traefik.tcp.routers.mariadb.service: "mariadb"
-      traefik.tcp.services.mariadb.loadbalancer.server.port: 3306
     volumes:
-      - mysql-data:/var/lib/mysql
+      - mysql-data:/var/lib/mysql:delegated
     networks:
       traefik-network:
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
-    restart: always
+    restart: unless-stopped
     environment:
       PMA_HOST: mysql
       PMA_USER: root
@@ -163,7 +164,7 @@ services:
 
   maildev:
     image: maildev/maildev:latest
-    restart: always
+    restart: unless-stopped
     labels:
       # Traefik
       traefik.enable: true

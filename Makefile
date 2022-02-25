@@ -11,14 +11,14 @@ DOCKER = MSYS_NO_PATHCONV=1 docker
 
 # https://github.com/FiloSottile/mkcert#installation
 ifeq ($(OS),Windows_NT)
-	MKCERT_BINARY = ./bin/mkcert-v1.4.3-windows-amd64.exe
+	MKCERT_BINARY = $(CURDIR)/bin/mkcert-v1.4.3-windows-amd64.exe
 else
 	UNAME_S := $(shell uname -s)
 	ifeq ($(UNAME_S),Linux)
-		MKCERT_BINARY = ./bin/mkcert-v1.4.3-linux-amd64
+		MKCERT_BINARY = $(CURDIR)/bin/mkcert-v1.4.3-linux-amd64
 	endif
 	ifeq ($(UNAME_S),Darwin)
-		MKCERT_BINARY = ./bin/mkcert-v1.4.3-darwin-amd64
+		MKCERT_BINARY = $(CURDIR)/bin/mkcert-v1.4.3-darwin-amd64
 	endif
 endif
 
@@ -61,15 +61,15 @@ pull: ## Pull the latest images for the docker compose file
 .PHONY: ssl-generate
 ssl-generate: ## Generate the SSL certificates needed for https
 	@$(MKCERT_BINARY) \
-		-cert-file "./certs/_default.pem" \
-		-key-file "./certs/_default-key.pem" \
+		-cert-file "$(CURDIR)/certs/_default.pem" \
+		-key-file "$(CURDIR)/certs/_default-key.pem" \
 		"ankorstore.localhost" \
 		"*.ankorstore.localhost" \
 		"dev.localhost" \
 		"*.dev.localhost" \
 		"ankorlocal.com" \
 		"*.ankorlocal.com" \
-		$$(tr '\n' ' ' < ./ssl-domains.txt || printf '')
+		$$(tr '\n' ' ' < $(CURDIR)/ssl-domains.txt || printf '')
 
 .PHONY: ssl-import
 ssl-import: ## Import the root certificate of mkcert
@@ -78,20 +78,20 @@ ssl-import: ## Import the root certificate of mkcert
 .PHONY: ssl-reset
 ssl-reset: ## Remove the generated certificates
 	rm -f \
-		"./certs/_default.pem" \
-		"./certs/_default-key.pem"
+		"$(CURDIR)/certs/_default.pem" \
+		"$(CURDIR)/certs/_default-key.pem"
 
 %: force
-	@mkdir -p ./certs;
-	@mkdir -p ./config/phpmyadmin;
-	@mkdir -p ./volumes/mysql-data;
-	@mkdir -p ./volumes/portainer-data;
+	@mkdir -p $(CURDIR)/certs;
+	@mkdir -p $(CURDIR)/config/phpmyadmin;
+	@mkdir -p $(CURDIR)/volumes/mysql-data;
+	@mkdir -p $(CURDIR)/volumes/portainer-data;
 
-	@if [ ! -f .env ]; then cp .env.example .env ; fi;
-	@if [ ! -f ./config/phpmyadmin/config.creds.inc.php ]; then cp ./config/phpmyadmin/config.creds{.example,}.inc.php; fi;
+	@if [ ! -f "$(CURDIR)/.env" ]; then cp "$(CURDIR)/.env.example" "$(CURDIR)/.env" ; fi;
+	@if [ ! -f "$(CURDIR)/config/phpmyadmin/config.creds.inc.php" ]; then cp $(CURDIR)/config/phpmyadmin/config.creds{.example,}.inc.php; fi;
 
-	@[ "$$($(DOCKER) volume list --quiet --filter name="mysql-data")" ] || $(DOCKER) volume create --driver "local" --opt "type=none" --opt "o=bind" --opt "device=volumes/mysql-data" "mysql-data";
-	@[ "$$($(DOCKER) volume list --quiet --filter name="portainer-data")" ] || $(DOCKER) volume create --driver "local" --opt "type=none" --opt "o=bind" --opt "device=volumes/portainer-data" "portainer-data";
+	@[ "$$($(DOCKER) volume list --quiet --filter name="mysql-data")" ] || $(DOCKER) volume create --driver "local" --opt "type=none" --opt "o=bind" --opt "device=$(CURDIR)/volumes/mysql-data" "mysql-data";
+	@[ "$$($(DOCKER) volume list --quiet --filter name="portainer-data")" ] || $(DOCKER) volume create --driver "local" --opt "type=none" --opt "o=bind" --opt "device=$(CURDIR)/volumes/portainer-data" "portainer-data";
 	@[ "$$($(DOCKER) network list --quiet --filter name="traefik-network")" ] || $(DOCKER) network create "traefik-network";
 
 .PHONY: force
