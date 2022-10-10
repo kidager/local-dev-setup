@@ -165,6 +165,13 @@ services:
   maildev:
     image: maildev/maildev:latest
     restart: unless-stopped
+    environment:
+      - MAILDEV_WEB_PORT=80
+      - MAILDEV_SMTP_PORT=25
+    healthcheck:
+      interval: 10s
+      timeout: 1s
+      test: wget -O - http://localhost/healthz || exit 1
     labels:
       # Traefik
       traefik.enable: true

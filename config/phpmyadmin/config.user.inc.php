@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+const SERVER_SEPARATOR = "========================";
+
 $hideDb = '(information_schema|mysql|performance_schema|phpmyadmin|sys|innodb|tmp)';
 
 $cfg['ShowStats'] = true;
@@ -22,17 +24,19 @@ $cfg['QueryHistoryMax'] = 500;
 $cfg['SendErrorReports'] = 'never';
 $cfg['RetainQueryBox'] = true;
 $cfg['ShowDatabasesNavigationAsTree'] = true;
-$cfg['MaxNavigationItems'] = 100;
+$cfg['NavigationTreeDisplayItemFilterMinimum'] = 1000;
+$cfg['FirstLevelNavigationItems'] = 1000;
+$cfg['MaxNavigationItems'] = 1000;
 $cfg['NavigationTreeEnableGrouping'] = false;
 $cfg['DisplayServersList'] = false;
-$cfg['ShowStats'] = false;
 $cfg['RememberSorting'] = false;
 $cfg['RepeatCells'] = 0;
 $cfg['Console']['Height'] = 210;
 $cfg['Console']['Mode'] = 'collapse';
-$cfg['ForceSSL'] = true;
-$cfg['DefaultTabDatabase'] = 'sql';
-$cfg['DefaultTabTable'] = 'structure';
+$cfg['ForceSSL'] = false;
+// $cfg['DefaultTabDatabase'] = 'sql';
+// $cfg['DefaultTabTable'] = 'structure';
+$cfg['DefaultConnectionCollation'] = 'utf8mb4_general_ci';
 
 /* Include User Defined Settings Hook */
 if (file_exists('/etc/phpmyadmin/config.creds.inc.php')) {
