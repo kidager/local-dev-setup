@@ -65,7 +65,7 @@ services:
       traefik-network:
 
   portainer:
-    image: portainer/portainer-ce:latest
+    image: portainer/portainer-ee:latest
     restart: unless-stopped
     labels:
       # Traefik
